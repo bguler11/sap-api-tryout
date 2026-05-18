@@ -1,23 +1,55 @@
 import { Router, Request, Response } from 'express';
 import fetch from 'node-fetch';
-import { getEnvironmentById, addRequestHistory } from '../services/db.service';
+import { getEnvironmentByIdUnsafe, getEnvironmentApiById, addRequestHistory } from '../services/db.service';
 
 const router = Router();
 
+const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+async function fetchCsrfToken(
+  baseUrl: string,
+  path: string,
+  credentials: string
+): Promise<{ token: string; cookies: string }> {
+  const tokenUrl = `${baseUrl}${path}`;
+  const response = await fetch(tokenUrl, {
+    method: 'GET',
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      'x-csrf-token': 'Fetch',
+      Accept: 'application/json',
+    },
+  });
+  const token = response.headers.get('x-csrf-token') || '';
+  const rawHeaders = (response.headers as any).raw();
+  const setCookieHeaders: string[] = rawHeaders['set-cookie'] || [];
+  const cookies = setCookieHeaders.map((c: string) => c.split(';')[0]).join('; ');
+  return { token, cookies };
+}
+
 router.post('/', async (req: Request, res: Response) => {
-  const { environmentId, method, path, queryParams, body, headers: extraHeaders } = req.body;
+  const { environmentId, apiId, method, path, queryParams, body, headers: extraHeaders } = req.body;
 
   if (!environmentId || !method || !path) {
     return res.status(400).json({ error: 'environmentId, method ve path zorunludur' });
   }
 
-  const env = getEnvironmentById(Number(environmentId));
+  const env = getEnvironmentByIdUnsafe(Number(environmentId));
   if (!env) return res.status(404).json({ error: 'Environment bulunamadı' });
 
   const credentials = Buffer.from(`${env.username}:${env.password}`).toString('base64');
-
   const baseUrl = env.base_url.replace(/\/$/, '');
-  let url = `${baseUrl}${path}`;
+
+  let resolvedPath = path;
+  if (apiId && !path.startsWith('/sap/')) {
+    const api = getEnvironmentApiById(Number(apiId));
+    if (api?.service_url) {
+      const serviceUrl = api.service_url.replace(/\/$/, '');
+      resolvedPath = `${serviceUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+    }
+  }
+
+  let url = `${baseUrl}${resolvedPath}`;
 
   if (queryParams && Object.keys(queryParams).length > 0) {
     const params = new URLSearchParams();
@@ -30,41 +62,51 @@ router.post('/', async (req: Request, res: Response) => {
     if (paramStr) url += `?${paramStr}`;
   }
 
+  const isSOAP = resolvedPath.includes('/sap/bc/srt/') || (extraHeaders?.['Content-Type'] || '').toLowerCase().includes('xml');
+
   const requestHeaders: Record<string, string> = {
     Authorization: `Basic ${credentials}`,
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
+    Accept: isSOAP ? 'text/xml' : 'application/json',
+    'Content-Type': isSOAP ? 'text/xml; charset=utf-8' : 'application/json',
     ...(extraHeaders || {}),
   };
+
+  const isMutating = MUTATING_METHODS.includes(method.toUpperCase());
+
+  if (isMutating && !isSOAP) {
+    try {
+      const serviceRoot = resolvedPath.split('/').slice(0, 6).join('/') + '/$metadata';
+      const { token, cookies } = await fetchCsrfToken(baseUrl, serviceRoot, credentials);
+      console.log('[CSRF] token fetch path:', serviceRoot, '| token:', token, '| cookies:', cookies?.substring(0, 80));
+      if (token) requestHeaders['x-csrf-token'] = token;
+      if (cookies) requestHeaders['Cookie'] = cookies;
+    } catch (e: any) {
+      console.log('[CSRF] token fetch failed:', e.message);
+    }
+  }
 
   const startTime = Date.now();
 
   try {
-    const fetchOptions: any = {
-      method: method.toUpperCase(),
-      headers: requestHeaders,
-    };
-
+    const fetchOptions: any = { method: method.toUpperCase(), headers: requestHeaders };
     if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && body) {
-      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+      fetchOptions.body = typeof body === 'string' ? body : (isSOAP ? body : JSON.stringify(body));
     }
 
+    console.log('[PROXY] →', method.toUpperCase(), url);
+    console.log('[PROXY] headers:', JSON.stringify(requestHeaders));
     const response = await fetch(url, fetchOptions);
     const duration = Date.now() - startTime;
+    console.log('[PROXY] ←', response.status, response.statusText);
 
     const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
+    response.headers.forEach((value, key) => { responseHeaders[key] = value; });
 
-    let responseBody: any;
     const contentType = response.headers.get('content-type') || '';
-
-    if (contentType.includes('application/json')) {
-      responseBody = await response.json();
-    } else {
-      responseBody = await response.text();
-    }
+    const responseBody = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
+    console.log('[PROXY] ←', response.status, response.statusText);
 
     addRequestHistory({
       environment_id: Number(environmentId),
@@ -74,22 +116,10 @@ router.post('/', async (req: Request, res: Response) => {
       duration_ms: duration,
     });
 
-    res.json({
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-      body: responseBody,
-      duration_ms: duration,
-      url,
-    });
+    res.json({ status: response.status, statusText: response.statusText, headers: responseHeaders, body: responseBody, duration_ms: duration, url });
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    res.status(502).json({
-      error: 'SAP sistemine bağlanılamadı',
-      message: error.message,
-      duration_ms: duration,
-      url,
-    });
+    res.status(502).json({ error: 'SAP sistemine bağlanılamadı', message: error.message, duration_ms: duration, url });
   }
 });
 

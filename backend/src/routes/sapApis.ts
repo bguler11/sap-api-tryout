@@ -1,52 +1,46 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import fetch from 'node-fetch';
-import { getApiList, getApiSpec } from '../services/sapApiHub.service';
-import { getEnvironmentById } from '../services/db.service';
+import { getEnvironmentApis, getEnvironmentById } from '../services/db.service';
+import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
-  res.json(getApiList());
-});
-
-router.get('/:apiId/spec', (req: Request, res: Response) => {
-  const spec = getApiSpec(req.params.apiId);
-  if (!spec) return res.status(404).json({ error: 'API spec bulunamadı' });
-  res.json(spec);
-});
-
-router.post('/:apiId/check', async (req: Request, res: Response) => {
+router.post('/check-all', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { environmentId } = req.body;
   if (!environmentId) return res.status(400).json({ error: 'environmentId zorunludur' });
 
-  const apis = getApiList();
-  const api = apis.find(a => a.id === req.params.apiId);
-  if (!api) return res.status(404).json({ error: 'API bulunamadı' });
-
-  const env = getEnvironmentById(Number(environmentId));
+  const env = getEnvironmentById(Number(environmentId), req.user!.id);
   if (!env) return res.status(404).json({ error: 'Environment bulunamadı' });
 
+  const apis = getEnvironmentApis(Number(environmentId));
+  if (apis.length === 0) return res.json({});
+
   const credentials = Buffer.from(`${env.username}:${env.password}`).toString('base64');
-  const url = `${env.base_url.replace(/\/$/, '')}${api.testPath}`;
+  const baseUrl = env.base_url.replace(/\/$/, '');
 
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        Accept: 'application/json',
-      },
-    });
+  const result: Record<number, { accessible: boolean; status: number }> = {};
 
-    const accessible = response.status < 400;
-    res.json({
-      accessible,
-      status: response.status,
-      communicationScenario: api.communicationScenario,
-    });
-  } catch {
-    res.json({ accessible: false, status: 0, communicationScenario: api.communicationScenario });
-  }
+  await Promise.all(
+    apis.map(async (api) => {
+      const testUrl = `${baseUrl}${api.service_url}/$metadata`;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          headers: { Authorization: `Basic ${credentials}`, Accept: 'application/xml' },
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const accessible = response.status >= 200 && response.status < 400;
+        result[api.id] = { accessible, status: response.status };
+      } catch {
+        result[api.id] = { accessible: false, status: 0 };
+      }
+    })
+  );
+
+  res.json(result);
 });
 
 export default router;

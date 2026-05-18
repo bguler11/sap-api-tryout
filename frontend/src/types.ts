@@ -1,3 +1,14 @@
+export interface User {
+  id: number;
+  email: string;
+  name?: string;
+}
+
+export interface AuthState {
+  token: string;
+  user: User;
+}
+
 export interface Environment {
   id: number;
   name: string;
@@ -8,20 +19,30 @@ export interface Environment {
   updated_at: string;
 }
 
-export interface SapApi {
-  id: string;
+export interface EnvironmentApi {
+  id: number;
+  environment_id: number;
   name: string;
-  description: string;
-  version: string;
-  category: string;
-  communicationScenario: string;
-  testPath: string;
+  description?: string;
+  service_name: string;
+  service_url: string;
+  protocol: string;
+  arrangement_status: 'ok' | 'failed' | 'pending';
+  spec_cached_at?: string;
+  created_at: string;
 }
 
 export interface ApiCheckResult {
   accessible: boolean;
   status: number;
-  communicationScenario: string;
+}
+
+export interface CatalogApiResult {
+  name: string;
+  title: string;
+  description: string;
+  subType: string;
+  version: string;
 }
 
 export interface OpenApiParameter {
@@ -53,6 +74,7 @@ export interface OpenApiOperation {
   summary?: string;
   operationId?: string;
   description?: string;
+  tags?: string[];
   parameters?: OpenApiParameter[];
   requestBody?: OpenApiRequestBody;
   responses?: Record<string, { description?: string }>;
@@ -70,6 +92,7 @@ export interface OpenApiSpec {
   openapi: string;
   info: { title: string; version: string };
   paths: Record<string, OpenApiPathItem>;
+  'x-sap-comm-scenario'?: string | null;
 }
 
 export interface Endpoint {
@@ -85,6 +108,25 @@ export interface ProxyResponse {
   body: any;
   duration_ms: number;
   url: string;
+}
+
+export interface Variant {
+  id: number;
+  api_id: string;
+  method: string;
+  path: string;
+  name: string;
+  params: Record<string, any>;
+  created_at: string;
+  scope: 'user' | 'global';
+  environment_id?: number;
+  created_by?: number;
+  created_by_email?: string;
+}
+
+export interface VariantList {
+  user: Variant[];
+  global: Variant[];
 }
 
 export interface RequestHistory {
