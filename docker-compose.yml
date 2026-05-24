@@ -5,13 +5,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sap-tryout-backend
+    container_name: ntt-explorer-backend
     environment:
       - PORT=3001
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-sap-api-tryout-default-key-32chr!}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-ntt-api-explorer-default-32chr!}
       - NODE_ENV=production
     volumes:
-      - sap_data:/app/data
+      - ntt_explorer_data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
@@ -23,7 +23,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: sap-tryout-frontend
+    container_name: ntt-explorer-frontend
     ports:
       - "80:80"
     depends_on:
@@ -31,4 +31,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  sap_data:
+  ntt_explorer_data:

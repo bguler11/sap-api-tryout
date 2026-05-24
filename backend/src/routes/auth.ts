@@ -5,7 +5,7 @@ import { createUser, getUserByEmail } from '../services/db.service';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'sap-tryout-jwt-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'ntt-explorer-jwt-secret-change-prod';
 
 router.post('/register', async (req: Request, res: Response) => {
   const { email, password, name } = req.body;

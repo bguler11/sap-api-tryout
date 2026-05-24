@@ -9,7 +9,7 @@ SAP API Try-Out, SAP S/4HANA Cloud sistemlerine bağlanarak OData API'lerini tar
 ## Dizin Yapısı
 
 ```
-sap-api-tryout/
+ntt-api-explorer/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts                  # Uygulama giriş noktası
@@ -63,7 +63,7 @@ Uygulamayı ayağa kaldırır. Sırasıyla:
 2. `seedCommScenarios(COMM_SCENARIO_MAP)` — Statik mapping'i DB'ye ilk kez yazar (var olanların üzerine yazmaz)
 3. `preloadCatalog()` — SAP API Hub'dan API listesini memory'e çeker (arka planda)
 
-**Dikkat:** `ALLOWED_ORIGIN` env değişkeni tanımlı değilse sadece `localhost:5173` ve Railway URL'sine izin verilir.
+**Dikkat:** `ALLOWED_ORIGIN` env değişkeni tanımlı değilse sadece `localhost:5173` isteklerine izin verilir.
 
 ---
 
@@ -71,7 +71,7 @@ Uygulamayı ayağa kaldırır. Sırasıyla:
 
 Tüm route'lar (auth hariç) bu middleware'den geçer. `Authorization: Bearer <token>` header'ını doğrular ve `req.userId` ile `req.userEmail`'i set eder.
 
-**Manuel müdahale:** `JWT_SECRET` env değişkeni set edilmezse varsayılan `'sap-api-tryout-secret'` kullanılır — production'da mutlaka değiştirilmeli.
+**Manuel müdahale:** `JWT_SECRET` env değişkeni set edilmezse varsayılan `'ntt-api-explorer-secret'` kullanılır — production'da mutlaka değiştirilmeli.
 
 ---
 

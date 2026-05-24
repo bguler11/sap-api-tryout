@@ -64,6 +64,8 @@ export const environmentApisApi = {
       }),
     }),
   getSpec: (id: number) => request<OpenApiSpec>(`/environment-apis/${id}/spec`),
+  getSandboxSpec: (id: number) => request<any>(`/environment-apis/${id}/sandbox-spec`),
+  getSandboxRawSpec: (id: number) => request<any>(`/environment-apis/${id}/sandbox-raw-spec`),
   uploadSpec: (id: number, spec: object) =>
     request<{ ok: boolean; id: number }>(`/environment-apis/${id}/spec`, {
       method: 'POST',

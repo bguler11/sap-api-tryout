@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
 import { getApiDetail } from './sapCatalog.service';
 
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 30000; // 30 saniyeye çıkarıldı
 
 function getApiKey(): string {
   return process.env.SAP_API_KEY || '';
@@ -258,7 +258,7 @@ export async function fetchAndParseMetadata(serviceName: string, cachedSpec?: st
 
   if (isSOAP) {
     protocol = 'SOAP';
-    serviceUrl = detail.serviceUrl || `/sap/bc/srt/sap/${serviceName}`;
+    serviceUrl = detail.serviceUrl || `/sap/bc/srt/scs_ext/sap/${serviceName}`;
   } else {
     protocol = 'OData';
     serviceUrl = detail.serviceUrl || `/sap/opu/odata/sap/${serviceName}`;
@@ -274,10 +274,13 @@ export async function fetchAndParseMetadata(serviceName: string, cachedSpec?: st
   }
 
   if (isSOAP) {
-    throw new Error(
-      `"${serviceName}" bir SOAP API'dir. Lütfen OpenAPI spec dosyasını "↑" butonu ile yükleyin. ` +
-      `Manual Spec Upload yapmak için SAP API Hub'dan JSON spec'i indirip yapıştırın.`
-    );
+    const openapi = {
+      openapi: '3.0.0',
+      info: { title: serviceName, version: '1.0.0', description: 'SOAP API Placeholder' },
+      paths: {},
+      'x-spec-uploaded': false
+    };
+    return { serviceName, serviceUrl, protocol, openapi };
   }
 
   const [metadataRes, memberTitles] = await Promise.all([

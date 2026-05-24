@@ -14,13 +14,13 @@ import authRouter from './routes/auth';
 import variantsRouter from './routes/variants';
 
 dotenv.config();
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://frontend-production-38547.up.railway.app',
   process.env.ALLOWED_ORIGIN,
 ].filter(Boolean) as string[];
 
@@ -52,7 +52,7 @@ app.get('/api/health', (_req, res) => {
 initDb().then(() => {
   seedCommScenarios(COMM_SCENARIO_MAP);
   app.listen(PORT, () => {
-    console.log(`SAP API Try-Out Backend çalışıyor: http://localhost:${PORT}`);
+    console.log(`NTT API Explorer Backend çalışıyor: http://localhost:${PORT}`);
     preloadCatalog();
   });
 }).catch(err => {

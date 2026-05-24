@@ -50,6 +50,7 @@ export default function App() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null);
   const [loadingSpec, setLoadingSpec] = useState(false);
   const [commScenario, setCommScenario] = useState<string | null>(null);
+  const [isSpecUploaded, setIsSpecUploaded] = useState(false);
 
   const [showEnvModal, setShowEnvModal] = useState(false);
   const [editingEnv, setEditingEnv] = useState<Environment | null>(null);
@@ -143,16 +144,19 @@ export default function App() {
     setSelectedEndpoint(null);
     setEndpoints([]);
     setCommScenario(null);
+    setIsSpecUploaded(false);
     setLoadingSpec(true);
     try {
-      const spec: OpenApiSpec = await environmentApisApi.getSpec(api.id);
+      const spec = (await environmentApisApi.getSpec(api.id)) as OpenApiSpec & { 'x-spec-uploaded'?: boolean };
       setCommScenario(spec['x-sap-comm-scenario'] ?? null);
+      setIsSpecUploaded(spec['x-spec-uploaded'] === true);
       const parsed: Endpoint[] = [];
       Object.entries(spec.paths).forEach(([path, pathItem]) => {
         const methods = ['get', 'post', 'put', 'patch', 'delete'] as const;
         methods.forEach(method => {
-          if (pathItem[method]) {
-            parsed.push({ path, method, operation: pathItem[method]! });
+          const item = pathItem as any;
+          if (item && item[method]) {
+            parsed.push({ path, method, operation: item[method]! });
           }
         });
       });
@@ -165,9 +169,13 @@ export default function App() {
   };
 
   const handleApiAdded = (api: EnvironmentApi) => {
-    setApis(prev => [...prev, api]);
+    const updatedList = [...apis, api];
+    setApis(updatedList);
     setShowAddApiModal(false);
-    if (selectedEnvironment) checkAllArrangements(selectedEnvironment.id);
+    if (selectedEnvironment) {
+      checkAllApis(selectedEnvironment.id, updatedList);
+      checkAllArrangements(selectedEnvironment.id);
+    }
   };
 
   const handleDeleteApi = async (id: number) => {
@@ -188,6 +196,12 @@ export default function App() {
       if (selectedApi?.id === id) {
         await handleSelectApi(updated);
       }
+      if (selectedEnvironment) {
+        await Promise.all([
+          checkAllApis(selectedEnvironment.id),
+          checkAllArrangements(selectedEnvironment.id)
+        ]);
+      }
     } catch (err: any) {
       alert(`Spec yenilenemedi: ${err.message}`);
     }
@@ -198,8 +212,23 @@ export default function App() {
       const result = await environmentApisApi.arrange(id);
       setApis(prev => prev.map(a => a.id === id ? { ...a, arrangement_status: result.status as any } : a));
       alert(result.message);
+      if (selectedEnvironment) {
+        await Promise.all([
+          checkAllApis(selectedEnvironment.id),
+          checkAllArrangements(selectedEnvironment.id)
+        ]);
+      }
     } catch (err: any) {
       alert(`Arrangement hatası: ${err.message}`);
+    }
+  };
+
+  const handleRefreshAllStatuses = async () => {
+    if (selectedEnvironment) {
+      await Promise.all([
+        checkAllApis(selectedEnvironment.id),
+        checkAllArrangements(selectedEnvironment.id)
+      ]);
     }
   };
 
@@ -282,6 +311,7 @@ export default function App() {
         user={auth.user}
         onLogout={handleLogout}
         onOpenCommScenario={() => setShowCommScenario(true)}
+        onRefreshAllStatuses={handleRefreshAllStatuses}
       />
 
       {selectedApi ? (
@@ -294,6 +324,8 @@ export default function App() {
             communicationScenario={commScenario}
             onSelectEndpoint={setSelectedEndpoint}
             selectedEndpoint={selectedEndpoint}
+            onUploadSpec={setSpecUploadApiId}
+            isSpecUploaded={isSpecUploaded}
           />
           <TryOutPanel
             endpoint={selectedEndpoint}
@@ -306,16 +338,16 @@ export default function App() {
         <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center max-w-sm">
             <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-2xl font-bold">SAP</span>
+              <span className="text-white text-2xl font-bold">NTT</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">SAP API Try-Out</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">NTT API Explorer</h1>
             <p className="text-gray-500 text-sm mb-6">
               Sol panelden bir ortam tanımlayın, ardından test etmek istediğiniz API'yi ekleyin.
             </p>
             <div className="flex flex-col gap-2 text-left bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <span className="text-sap-blue font-bold">1.</span>
-                <span>"+ Ekle" ile SAP sisteminizi tanımlayın</span>
+                <span>"+ Ekle" ile sistemlerinizi tanımlayın</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sap-blue font-bold">2.</span>
@@ -327,7 +359,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sap-blue font-bold">4.</span>
-                <span>"Gönder" ile gerçek SAP verinizi görün</span>
+                <span>"Gönder" ile gerçek verinizi görün</span>
               </div>
             </div>
           </div>
@@ -371,6 +403,7 @@ export default function App() {
           <SpecUploadModal
             apiId={specUploadApiId}
             apiName={targetApi?.name ?? ''}
+            serviceName={targetApi?.service_name ?? ''}
             onClose={() => setSpecUploadApiId(null)}
             onSaved={() => {
               setSpecUploadApiId(null);

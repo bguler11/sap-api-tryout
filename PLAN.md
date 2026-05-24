@@ -1,4 +1,4 @@
-# SAP API Try-Out — Proje Durumu ve Yol Haritası
+# NTT API Explorer — Proje Durumu ve Yol Haritası
 
 ## Genel Bakış
 
@@ -23,7 +23,7 @@ Kullanıcı bazlı auth, ortam yönetimi, varyant sistemi ve SOAP desteği içer
 ## Proje Yapısı
 
 ```
-sap-api-tryout/
+ntt-api-explorer/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts                        # Express app, route tanımları
@@ -212,9 +212,9 @@ request_history (id, environment_id, method, path, status_code, duration_ms, cre
 
 | | Değer |
 |---|---|
-| Backend repo | `bguler11/sap-api-tryout` |
+| Backend repo | `bguler11/ntt-api-explorer` |
 | Backend root | `/backend` |
-| Frontend repo | `bguler11/sap-api-tryout-frontend` |
+| Frontend repo | `bguler11/ntt-api-explorer-frontend` |
 | Platform | Railway |
 | Backend port | `process.env.PORT \|\| 3001` |
 | CORS | `localhost:5173` + Railway frontend URL + `process.env.ALLOWED_ORIGIN` |

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc';
-const SECRET_KEY = process.env.ENCRYPTION_KEY || 'sap-api-tryout-default-key-32chr!';
+const SECRET_KEY = process.env.ENCRYPTION_KEY || 'ntt-api-explorer-default-32chr!';
 const KEY = crypto.scryptSync(SECRET_KEY, 'salt', 32);
 
 export function encrypt(text: string): string {

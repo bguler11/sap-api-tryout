@@ -4,11 +4,12 @@ import { environmentApisApi } from '../../services/api';
 interface Props {
   apiId: number;
   apiName: string;
+  serviceName: string;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export default function SpecUploadModal({ apiId, apiName, onClose, onSaved }: Props) {
+export default function SpecUploadModal({ apiId, apiName, serviceName, onClose, onSaved }: Props) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -39,28 +40,55 @@ export default function SpecUploadModal({ apiId, apiName, onClose, onSaved }: Pr
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <div>
             <h2 className="text-sm font-semibold text-gray-800">OpenAPI Spec Yükle</h2>
-            <div className="text-xs text-gray-400 mt-0.5">{apiName}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{apiName} ({serviceName})</div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">
             ×
           </button>
         </div>
 
-        <div className="px-5 py-4 flex flex-col gap-3 flex-1 min-h-0">
-          <div className="text-xs text-gray-500 bg-gray-50 rounded p-3">
-            SAP API Hub'dan indirdiğiniz <span className="font-medium">OpenAPI JSON</span> spec'ini aşağıya yapıştırın. Mevcut spec varsa üzerine yazılır.
+        <div className="px-5 py-4 flex flex-col gap-3.5 flex-1 min-h-0 overflow-y-auto">
+          {/* Adım Adım Kılavuz */}
+          <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-3">
+            <div className="font-semibold text-gray-800 flex items-center gap-1.5 text-xs border-b border-gray-200 pb-2">
+              💡 OpenAPI Spec Kopyalama ve Yükleme Adımları:
+            </div>
+            <ol className="list-decimal pl-4 space-y-2 text-gray-600 leading-relaxed">
+              <li>
+                Aşağıdaki <strong className="text-sap-blue">"Orijinal JSON Kodunu Aç"</strong> butonuna tıklayarak spesifikasyon sayfasını yeni sekmede açın. (Eğer oturumunuz açık değilse SAP ID bilgilerinizle giriş yapın).
+              </li>
+              <li>
+                Açılan tarayıcı sayfasındaki tüm yazıları seçip kopyalayın (Klavye kısayolu: <kbd className="bg-white border border-gray-300 rounded px-1.5 py-0.5 text-[10px] font-mono shadow-xs">Ctrl + A</kbd> ile tümünü seçin, ardından <kbd className="bg-white border border-gray-300 rounded px-1.5 py-0.5 text-[10px] font-mono shadow-xs">Ctrl + C</kbd> ile kopyalayın).
+              </li>
+              <li>
+                Kopyaladığınız JSON içeriğini aşağıdaki metin kutusuna yapıştırın (<kbd className="bg-white border border-gray-300 rounded px-1.5 py-0.5 text-[10px] font-mono shadow-xs">Ctrl + V</kbd>) ve en alttaki <strong>"Spec Kaydet"</strong> butonuna tıklayın.
+              </li>
+            </ol>
+            {serviceName && (
+              <div className="mt-1 flex justify-end">
+                <a
+                  href={`https://api.sap.com/odata/1.0/catalog.svc/APIContent.APIs('${serviceName}')/$value?type=json`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-sap-blue hover:bg-sap-darkblue text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition-all"
+                >
+                  <span>🌐 Orijinal JSON Kodunu Aç (Sekmede)</span>
+                  <span className="text-[10px]">↗</span>
+                </a>
+              </div>
+            )}
           </div>
 
           <textarea
             value={text}
             onChange={e => { setText(e.target.value); setError(''); }}
-            placeholder={'{\n  "openapi": "3.0.0",\n  ...\n}'}
-            className="flex-1 min-h-[300px] border border-gray-300 rounded px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sap-blue resize-none"
+            placeholder={'{\n  "openapi": "3.0.0",\n  ...\n}\n\n[İpucu: Kopyaladığınız OpenAPI JSON içeriğini buraya yapıştırın]'}
+            className="flex-1 min-h-[250px] border border-gray-300 rounded-lg px-3 py-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sap-blue resize-none"
             autoFocus
           />
 
           {error && (
-            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
             </div>
           )}
@@ -70,7 +98,7 @@ export default function SpecUploadModal({ apiId, apiName, onClose, onSaved }: Pr
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 border border-gray-300 text-gray-700 text-sm rounded px-4 py-2 hover:bg-gray-50 transition-colors"
+            className="flex-1 border border-gray-300 text-gray-700 text-sm rounded px-4 py-2 hover:bg-gray-50 transition-colors font-medium"
           >
             İptal
           </button>
@@ -78,7 +106,7 @@ export default function SpecUploadModal({ apiId, apiName, onClose, onSaved }: Pr
             type="button"
             onClick={handleSave}
             disabled={saving || !text.trim()}
-            className="flex-1 bg-sap-blue text-white text-sm rounded px-4 py-2 hover:bg-sap-darkblue transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 bg-sap-blue text-white text-sm rounded px-4 py-2 hover:bg-sap-darkblue transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
           >
             {saving ? (
               <>

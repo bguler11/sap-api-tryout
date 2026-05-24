@@ -51,6 +51,18 @@ router.post('/', async (req: Request, res: Response) => {
 
   let url = `${baseUrl}${resolvedPath}`;
 
+  if (apiId) {
+    const api = getEnvironmentApiById(Number(apiId));
+    if (api && api.protocol === 'SOAP') {
+      // SOAP isteklerinde, operasyon ismi sadece UI kırılımı içindir. Ağ isteği her zaman baz SOAP URL'ine atılır.
+      let finalServiceUrl = api.service_url;
+      if (finalServiceUrl.startsWith('/sap/bc/srt/sap/')) {
+        finalServiceUrl = finalServiceUrl.replace('/sap/bc/srt/sap/', '/sap/bc/srt/scs_ext/sap/');
+      }
+      url = `${baseUrl}${finalServiceUrl}`;
+    }
+  }
+
   if (queryParams && Object.keys(queryParams).length > 0) {
     const params = new URLSearchParams();
     Object.entries(queryParams).forEach(([key, value]) => {

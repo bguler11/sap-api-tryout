@@ -23,6 +23,7 @@ interface Props {
   user: User;
   onLogout: () => void;
   onOpenCommScenario: () => void;
+  onRefreshAllStatuses?: () => void;
 }
 
 export default function Sidebar({
@@ -48,6 +49,7 @@ export default function Sidebar({
   user,
   onLogout,
   onOpenCommScenario,
+  onRefreshAllStatuses,
 }: Props) {
   const filteredApis = apis.filter(
     api =>
@@ -62,9 +64,9 @@ export default function Sidebar({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-sap-blue rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">SAP</span>
+              <span className="text-white text-xs font-bold">NTT</span>
             </div>
-            <span className="text-white font-semibold text-sm">API Try-Out</span>
+            <span className="text-white font-semibold text-sm">API Explorer</span>
           </div>
           <button
             onClick={onLogout}
@@ -161,13 +163,27 @@ export default function Sidebar({
           className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sap-blue"
         />
         {selectedEnvironment && (
-          <button
-            onClick={onAddApi}
-            title="API Ekle"
-            className="flex-shrink-0 bg-sap-blue text-white text-xs px-2 py-1.5 rounded hover:bg-sap-darkblue transition-colors font-medium"
-          >
-            + API
-          </button>
+          <div className="flex gap-1.5">
+            {onRefreshAllStatuses && (
+              <button
+                onClick={onRefreshAllStatuses}
+                disabled={checkingAccess}
+                title="Tüm API Bağlantı ve Arrangement Durumlarını Yenile"
+                className={`flex-shrink-0 border border-gray-300 hover:bg-gray-100 text-gray-600 text-xs px-2 py-1.5 rounded transition-all font-medium flex items-center justify-center ${
+                  checkingAccess ? 'opacity-50 cursor-not-allowed animate-spin' : ''
+                }`}
+              >
+                ↻
+              </button>
+            )}
+            <button
+              onClick={onAddApi}
+              title="API Ekle"
+              className="flex-shrink-0 bg-sap-blue text-white text-xs px-2 py-1.5 rounded hover:bg-sap-darkblue transition-colors font-medium"
+            >
+              + API
+            </button>
+          </div>
         )}
       </div>
 
@@ -216,14 +232,30 @@ export default function Sidebar({
                     onClick={() => onSelectApi(api)}
                   >
                     <div className="flex items-center gap-1.5">
-                      {checkingAccess && !isChecked ? (
+                      {api.protocol === 'SOAP' ? (
+                        <div
+                          title="SOAP Servisi (Bağlantı ve yetki doğrulaması gönderim esnasında yapılır)"
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0 cursor-help bg-amber-400"
+                        />
+                      ) : checkingAccess && !isChecked ? (
                         <div className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0" />
                       ) : isChecked ? (
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          access?.accessible ? 'bg-green-400' : 'bg-red-400'
-                        }`} />
+                        <div
+                          title={access?.accessible ? "Erişim Başarılı (HTTP 200)" : `Erişim Başarısız (HTTP ${access?.status === 0 ? 'TLS/Ağ Hatası' : access?.status})`}
+                          className={`w-2 h-2 rounded-full flex-shrink-0 cursor-help ${
+                            access?.accessible ? 'bg-green-400' : 'bg-red-400'
+                          }`}
+                        />
                       ) : null}
                       <div className="text-xs font-medium text-gray-800 truncate">{api.name}</div>
+                      {api.protocol !== 'SOAP' && isChecked && !access?.accessible && (
+                        <span
+                          className="bg-red-50 text-red-600 text-[10px] px-1 py-0.5 rounded font-mono font-bold leading-none border border-red-200 flex-shrink-0"
+                          title={`Erişim Hatası: HTTP ${access?.status === 0 ? 'TLS veya Ağ Bağlantı Hatası' : access?.status}`}
+                        >
+                          {access?.status === 0 ? 'TLS/Ağ' : `HTTP ${access?.status}`}
+                        </span>
+                      )}
                       {arrCheckable && arrNoMapping && (
                         <span
                           title="Scenario mapping bulunamadı — ··· menüsünden CommScenario sayfasına ekleyin"

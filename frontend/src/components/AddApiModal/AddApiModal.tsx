@@ -176,9 +176,9 @@ export default function AddApiModal({ environmentId, onClose, onAdded }: Props) 
           <div className="text-xs text-gray-500 bg-gray-50 rounded p-3">
             <div className="font-medium mb-1 text-gray-700">Ne olacak?</div>
             <ul className="space-y-1">
-              <li>• SAP Catalog'dan spec ve endpoint listesi oluşturulacak</li>
+              <li>• API kataloğundan spec ve endpoint listesi oluşturulacak</li>
               <li>• Seçilen ortama bağlantı test edilecek — erişilemiyorsa eklenmez</li>
-              <li>• Communication Arrangement sonraki adımda <span className="font-medium">🔗</span> ile kurulabilir</li>
+              <li>• Entegrasyon ayarları (Communication Arrangement) sonraki adımda <span className="font-medium">🔗</span> ile kurulabilir</li>
             </ul>
           </div>
 

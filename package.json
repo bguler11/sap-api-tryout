@@ -1,5 +1,5 @@
 {
-  "name": "sap-api-tryout",
+  "name": "ntt-api-explorer",
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",

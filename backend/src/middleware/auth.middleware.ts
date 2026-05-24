@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sap-tryout-jwt-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || 'ntt-explorer-jwt-secret-change-prod';
 
 export interface AuthRequest extends Request {
   user?: { id: number; email: string };

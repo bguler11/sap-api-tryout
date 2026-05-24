@@ -40,10 +40,10 @@ export default function LoginPage({ onAuth }: Props) {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">SAP</span>
+            <span className="text-white text-2xl font-bold">NTT</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">SAP API Try-Out</h1>
-          <p className="text-gray-500 text-sm mt-1">SAP sistemlerinizi test edin</p>
+          <h1 className="text-2xl font-bold text-gray-800">NTT API Explorer</h1>
+          <p className="text-gray-500 text-sm mt-1">Entegrasyon sistemlerinizi test edin</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

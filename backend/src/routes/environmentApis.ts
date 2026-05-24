@@ -13,7 +13,7 @@ import {
 } from '../services/db.service';
 import { fetchAndParseMetadata } from '../services/metadata.service';
 import { ensureArrangement, checkArrangement } from '../services/arrangement.service';
-import { searchSapCatalog } from '../services/sapCatalog.service';
+import { searchSapCatalog, getRawApiHubSpec } from '../services/sapCatalog.service';
 
 const router = Router();
 router.use(authMiddleware);
@@ -43,10 +43,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
   const env = getEnvironmentByIdUnsafe(Number(environmentId));
   if (!env) return res.status(404).json({ error: 'Environment bulunamadı' });
-
-  let specJson: string;
+  let specJson: string;
   let serviceUrl: string;
   let protocol: string;
+  let isCustom = false;
 
   try {
     const parsed = await fetchAndParseMetadata(serviceName);
@@ -55,19 +55,46 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     protocol = parsed.protocol;
   } catch (e: any) {
     const msg: string = e.message || '';
-    let hint = msg;
-    if (msg.includes('404')) hint = `Servis bulunamadı: "${serviceName}" — servis adını kontrol edin.`;
-    else if (msg.includes('Catalog')) hint = `"${serviceName}" SAP Catalog'da kayıtlı değil.`;
-    else if (msg.includes('abort') || msg.includes('timeout')) hint = `SAP Catalog'a bağlanılamadı (timeout). İnternet bağlantısını kontrol edin.`;
-    return res.status(422).json({ error: hint });
+    if (msg.includes('abort') || msg.includes('timeout')) {
+      return res.status(400).json({ error: `SAP Catalog'a bağlanılamadı (timeout). İnternet bağlantısını kontrol edin.` });
+    }
+
+    const isProbablySOAP = serviceName.toUpperCase().endsWith('_IN') || 
+                           serviceName.toUpperCase().endsWith('_OUT') || 
+                           serviceName.toUpperCase().includes('CONFI') || 
+                           serviceName.toUpperCase().includes('REQUEST') ||
+                           serviceName.toUpperCase().includes('SRT');
+
+    if (!isProbablySOAP) {
+      let hint = msg;
+      if (msg.includes('404')) hint = `Servis bulunamadı: "${serviceName}" — servis adını kontrol edin.`;
+      else if (msg.includes('Catalog')) hint = `"${serviceName}" SAP Catalog'da kayıtlı değil.`;
+      return res.status(422).json({ error: hint });
+    }
+
+    console.log(`[ADD API] "${serviceName}" SAP Catalog'da bulunamadı. Z-Service / Custom SOAP API olarak ekleniyor.`);
+    isCustom = true;
+
+    protocol = 'SOAP';
+    serviceUrl = `/sap/bc/srt/scs_ext/sap/${serviceName.toLowerCase()}`;
+
+    const openapi = {
+      openapi: '3.0.0',
+      info: { title: serviceName, version: '1.0.0', description: 'Custom / Z-Service SOAP API Placeholder' },
+      paths: {},
+      'x-spec-uploaded': false // Arayüzde kırmızı yanıp sönen butonu tetikler!
+    };
+
+    specJson = JSON.stringify(openapi);
   }
 
-  if (protocol !== 'SOAP') {
+  // Sadece resmi OData servisleri için eklerken bağlantı testi yap, custom veya SOAP servisleri testi geçsin
+  if (!isCustom && protocol !== 'SOAP') {
     try {
       const plainPassword = env.password;
       const testUrl = `${env.base_url.replace(/\/$/, '')}${serviceUrl}/$metadata`;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
+      const timer = setTimeout(() => controller.abort(), 30000); // 30 saniyeye çıkarıldı (Büyük metadata dosyaları için)
       let tenantRes: any;
       try {
         tenantRes = await fetch(testUrl, {
@@ -135,6 +162,30 @@ router.get('/:id/spec', async (req: AuthRequest, res: Response) => {
   res.json(JSON.parse(api.spec_cache));
 });
 
+router.get('/:id/sandbox-spec', async (req: AuthRequest, res: Response) => {
+  const api = getEnvironmentApiById(Number(req.params.id));
+  if (!api) return res.status(404).json({ error: 'API bulunamadı' });
+
+  try {
+    const parsed = await fetchAndParseMetadata(api.service_name);
+    res.json(parsed.openapi);
+  } catch (e: any) {
+    res.status(422).json({ error: `SAP Sandbox'tan veri çekilemedi: ${e.message}` });
+  }
+});
+
+router.get('/:id/sandbox-raw-spec', async (req: AuthRequest, res: Response) => {
+  const api = getEnvironmentApiById(Number(req.params.id));
+  if (!api) return res.status(404).json({ error: 'API bulunamadı' });
+
+  try {
+    const rawSpec = await getRawApiHubSpec(api.service_name);
+    res.json(rawSpec);
+  } catch (e: any) {
+    res.status(422).json({ error: `SAP API Hub'dan veri çekilemedi: ${e.message}` });
+  }
+});
+
 router.post('/:id/spec', async (req: AuthRequest, res: Response) => {
   const api = getEnvironmentApiById(Number(req.params.id));
   if (!api) return res.status(404).json({ error: 'API bulunamadı' });
@@ -173,6 +224,45 @@ router.post('/:id/spec', async (req: AuthRequest, res: Response) => {
     spec['x-sap-comm-scenario'] = commScenario;
   }
 
+  // SOAP API'ler için x-sap-ws-operations alanını paths objesine POST olarak haritalandır
+  const wsOps = spec['x-sap-ws-operations'];
+  if (Array.isArray(wsOps)) {
+    if (!spec.paths) spec.paths = {};
+    for (const op of wsOps) {
+      if (op && op.name) {
+        const opPath = `/${op.name}`;
+        if (!spec.paths[opPath]) {
+          spec.paths[opPath] = {
+            post: {
+              tags: [op.title || op.name],
+              summary: `${op.name} SOAP Operasyonu`,
+              operationId: op.name,
+              parameters: [],
+              requestBody: {
+                required: true,
+                content: {
+                  'text/xml': {
+                    schema: {
+                      type: 'string',
+                      example: `<!-- ${op.name} XML SOAP Zarfını Buraya Yapıştırın -->\n<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">\n   <soapenv:Header/>\n   <soapenv:Body>\n      <!-- SOAP Operasyon İçeriği -->\n   </soapenv:Body>\n</soapenv:Envelope>`
+                    }
+                  }
+                }
+              },
+              responses: {
+                '200': {
+                  description: 'Başarılı SOAP Yanıtı'
+                }
+              }
+            }
+          };
+        }
+      }
+    }
+  }
+
+  spec['x-spec-uploaded'] = true;
+
   try {
     updateEnvironmentApiSpec(api.id, JSON.stringify(spec));
   } catch (e: any) {
@@ -207,6 +297,11 @@ router.post('/:id/refresh', async (req: AuthRequest, res: Response) => {
     upsertCommScenarioBulk([{ service_name: api.service_name, scenario_id: commScenario }]);
   }
 
+  if (api.protocol === 'SOAP') {
+    res.json(getEnvironmentApiById(api.id));
+    return;
+  }
+
   const check = await checkArrangement(env.base_url, env.username, env.password, api.service_name);
   if (check.checkable) {
     updateEnvironmentApiArrangement(api.id, check.exists ? 'ok' : 'pending');
@@ -227,6 +322,9 @@ router.post('/check-arrangements', async (req: AuthRequest, res: Response) => {
 
   const results = await Promise.all(
     apiList.map(async api => {
+      if (api.protocol === 'SOAP') {
+        return { id: api.id, exists: false, checkable: false, noMapping: false, scenarioId: '', status: 'ok' };
+      }
       const check = await checkArrangement(env.base_url, env.username, env.password, api.service_name);
       if (!check.checkable) {
         return { id: api.id, exists: false, checkable: false, noMapping: check.noMapping, scenarioId: check.scenarioId, status: api.arrangement_status };

@@ -4,7 +4,7 @@ import { getCommScenario } from './commScenarioMap';
 const CATALOG_BASE = "https://api.sap.com/odata/1.0/catalog.svc";
 const ARTIFACT_LIST_URL =
   `${CATALOG_BASE}/ContentEntities.ContentPackages('SAPS4HANACloud')/Artifacts` +
-  `?$format=json&$filter=Type eq 'API' and State eq 'ACTIVE' and (SubType eq 'ODATA' or SubType eq 'ODATAV4')` +
+  `?$format=json&$filter=Type eq 'API' and State eq 'ACTIVE' and (SubType eq 'ODATA' or SubType eq 'ODATAV4' or SubType eq 'SOAP')` +
   `&$select=Name,DisplayName,Description,SubType,Version&$top=1000`;
 
 const TIMEOUT_MS = 20000;
@@ -139,6 +139,15 @@ export async function getApiDetail(apiName: string): Promise<CatalogApiDetail> {
 
   detailCache.set(apiName, detail);
   return detail;
+}
+
+export async function getRawApiHubSpec(apiName: string): Promise<any> {
+  const url = `${CATALOG_BASE}/APIContent.APIs('${encodeURIComponent(apiName)}')/$value?type=json`;
+  const res = await fetchWithTimeout(url, { headers: apiKeyHeaders() });
+  if (!res.ok) {
+    throw new Error(`SAP API Hub'dan spec indirilemedi: HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function fetchSandboxMetadata(apiName: string): Promise<string> {
