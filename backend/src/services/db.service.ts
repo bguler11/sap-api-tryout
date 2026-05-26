@@ -325,6 +325,7 @@ export interface Variant {
   environment_id?: number;
   created_by?: number;
   created_by_email?: string;
+  environment_name?: string;
 }
 
 export function getUserVariants(userId: number, apiId: string, method: string, path: string): Variant[] {
@@ -359,15 +360,68 @@ export function deleteUserVariant(id: number, userId: number): boolean {
   return true;
 }
 
+function extractTenantFromUrl(url: string): string {
+  try {
+    const cleanUrl = url.replace(/^(https?:\/\/)?(www\.)?/, '');
+    const host = cleanUrl.split('/')[0].split(':')[0]; // Port ve path temizliği
+    const parts = host.split('.');
+    for (const part of parts) {
+      if (part.toLowerCase().startsWith('my')) {
+        return part;
+      }
+    }
+    return parts[0] || 'SAP';
+  } catch {
+    return 'SAP';
+  }
+}
+
 export function getGlobalVariants(environmentId: number, apiId: string, method: string, path: string): Variant[] {
+  const env = queryOne<{ base_url: string }>('SELECT base_url FROM environments WHERE id = ?', [environmentId]);
+  if (!env) return [];
+  
+  const cleanUrl = env.base_url.trim().toLowerCase().replace(/\/$/, '');
+  
+  // Aynı base_url adresine sahip tüm ortamları getir (normalleştirilmiş eşleşme)
+  const envs = queryAll<{ id: number; base_url: string }>('SELECT id, base_url FROM environments');
+  const matchingEnvIds = envs
+    .filter(e => e.base_url.trim().toLowerCase().replace(/\/$/, '') === cleanUrl)
+    .map(e => e.id);
+    
+  if (matchingEnvIds.length === 0) return [];
+
+  // Mevcut apiId'nin service_name değerini bul
+  const currentApi = queryOne<{ service_name: string }>('SELECT service_name FROM environment_apis WHERE id = ?', [Number(apiId)]);
+  let matchingApiIds = [apiId];
+  if (currentApi) {
+    // Aynı service_name değerine sahip tüm yerel environment_api ID'lerini bul
+    const matchingApis = queryAll<{ id: number }>('SELECT id FROM environment_apis WHERE service_name = ?', [currentApi.service_name]);
+    matchingApiIds = matchingApis.map(a => String(a.id));
+  }
+  
+  const envPlaceholders = matchingEnvIds.map(() => '?').join(',');
+  const apiPlaceholders = matchingApiIds.map(() => '?').join(',');
+  
   return queryAll<any>(
-    `SELECT gv.id, gv.api_id, gv.method, gv.path, gv.name, gv.params, gv.created_at, gv.environment_id, gv.created_by, u.email as created_by_email
+    `SELECT gv.id, gv.api_id, gv.method, gv.path, gv.name, gv.params, gv.created_at, gv.environment_id, gv.created_by, u.email as created_by_email, e.name as environment_name, e.base_url as environment_url
      FROM global_variants gv
      LEFT JOIN users u ON gv.created_by = u.id
-     WHERE gv.environment_id=? AND gv.api_id=? AND gv.method=? AND gv.path=?
+     LEFT JOIN environments e ON gv.environment_id = e.id
+     WHERE gv.environment_id IN (${envPlaceholders}) AND gv.api_id IN (${apiPlaceholders}) AND gv.method=? AND gv.path=?
      ORDER BY gv.name`,
-    [environmentId, apiId, method, path]
-  ).map(r => ({ ...r, params: JSON.parse(r.params), scope: 'global' as const }));
+    [...matchingEnvIds, ...matchingApiIds, method, path]
+  ).map(r => {
+    let systemLabel = 'SAP';
+    if (r.environment_url) {
+      systemLabel = extractTenantFromUrl(r.environment_url);
+    }
+    return {
+      ...r,
+      params: JSON.parse(r.params),
+      scope: 'global' as const,
+      environment_name: systemLabel
+    };
+  });
 }
 
 export function createGlobalVariant(data: {

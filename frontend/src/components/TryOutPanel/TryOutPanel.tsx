@@ -7,6 +7,8 @@ interface Props {
   environment: Environment | null;
   apiId: string;
   userId: number;
+  onToggleSidebar?: () => void;
+  onToggleCatalog?: () => void;
 }
 
 const METHOD_COLORS: Record<string, string> = {
@@ -24,7 +26,7 @@ function getStatusColor(status: number): string {
   return 'text-gray-600 bg-gray-50 border-gray-200';
 }
 
-export default function TryOutPanel({ endpoint, environment, apiId, userId }: Props) {
+export default function TryOutPanel({ endpoint, environment, apiId, userId, onToggleSidebar, onToggleCatalog }: Props) {
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [bodyValue, setBodyValue] = useState('');
   const [response, setResponse] = useState<ProxyResponse | null>(null);
@@ -38,6 +40,8 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
   const [saveScope, setSaveScope] = useState<'user' | 'global'>('user');
   const [variantName, setVariantName] = useState('');
   const [savingVariant, setSavingVariant] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationSuccess, setValidationSuccess] = useState<boolean>(false);
 
   const isXmlEndpoint = !!(
     endpoint?.operation?.requestBody?.content?.['text/xml'] ||
@@ -51,6 +55,8 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
     setError('');
     setActiveTab('params');
     setVariants({ user: [], global: [] });
+    setValidationError(null);
+    setValidationSuccess(false);
 
     if (endpoint?.operation.requestBody) {
       const xmlContent = endpoint.operation.requestBody.content?.['text/xml'];
@@ -71,6 +77,104 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
       loadVariants(endpoint, environment.id);
     }
   }, [endpoint, environment]);
+
+  const validateBody = (valueToValidate = bodyValue): boolean => {
+    if (!valueToValidate.trim()) {
+      setValidationError(null);
+      setValidationSuccess(false);
+      return true;
+    }
+
+    if (isXmlEndpoint) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(valueToValidate, 'application/xml');
+        const parserErrors = xmlDoc.getElementsByTagName('parsererror');
+        if (parserErrors.length > 0) {
+          const errorMsg = parserErrors[0].textContent || 'Geçersiz XML formatı';
+          setValidationError(`XML Hatası: ${errorMsg}`);
+          setValidationSuccess(false);
+          return false;
+        }
+        setValidationError(null);
+        setValidationSuccess(true);
+        return true;
+      } catch (err: any) {
+        setValidationError(`XML Hatası: ${err.message || 'Geçersiz XML formatı'}`);
+        setValidationSuccess(false);
+        return false;
+      }
+    } else {
+      try {
+        JSON.parse(valueToValidate);
+        setValidationError(null);
+        setValidationSuccess(true);
+        return true;
+      } catch (err: any) {
+        setValidationError(`JSON Hatası: ${err.message}`);
+        setValidationSuccess(false);
+        return false;
+      }
+    }
+  };
+
+  const handleFormatBody = () => {
+    if (!bodyValue.trim()) return;
+    if (isXmlEndpoint) {
+      const formatted = formatXml(bodyValue);
+      setBodyValue(formatted);
+      validateBody(formatted);
+    } else {
+      try {
+        const parsed = JSON.parse(bodyValue);
+        const formatted = JSON.stringify(parsed, null, 2);
+        setBodyValue(formatted);
+        setValidationError(null);
+        setValidationSuccess(true);
+      } catch (err: any) {
+        setValidationError(`Formatlama Hatası (JSON Geçersiz): ${err.message}`);
+        setValidationSuccess(false);
+      }
+    }
+  };
+
+  const handleBodyChange = (val: string) => {
+    setBodyValue(val);
+    if (!val.trim()) {
+      setValidationError(null);
+      setValidationSuccess(false);
+      return;
+    }
+
+    // Real-time validation
+    if (isXmlEndpoint) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(val, 'application/xml');
+        const parserErrors = xmlDoc.getElementsByTagName('parsererror');
+        if (parserErrors.length > 0) {
+          setValidationError('Geçersiz XML formatı');
+          setValidationSuccess(false);
+        } else {
+          setValidationError(null);
+          setValidationSuccess(true);
+        }
+      } catch {
+        setValidationError('Geçersiz XML formatı');
+        setValidationSuccess(false);
+      }
+    } else {
+      try {
+        JSON.parse(val);
+        setValidationError(null);
+        setValidationSuccess(true);
+      } catch (err: any) {
+        setValidationError(`JSON Hatası: ${err.message}`);
+        setValidationSuccess(false);
+      }
+    }
+  };
+
 
   const loadVariants = async (ep: Endpoint, environmentId: number) => {
     try {
@@ -144,11 +248,21 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
 
   if (!endpoint) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-5xl mb-4">🔌</div>
-          <h3 className="text-lg font-medium text-gray-600 mb-1">Bir endpoint seçin</h3>
-          <p className="text-sm text-gray-400">Sol panelden bir API ve endpoint seçerek test etmeye başlayın</p>
+      <div className="flex-1 flex flex-col bg-gray-50 h-full overflow-y-auto">
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-2 lg:hidden">
+          <button 
+            onClick={onToggleSidebar}
+            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-medium border border-gray-200 transition-colors"
+          >
+            <span>☰</span> Ortam & API
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="text-5xl mb-4">🔌</div>
+            <h3 className="text-lg font-medium text-gray-600 mb-1">Bir endpoint seçin</h3>
+            <p className="text-sm text-gray-400">Sol panelden bir API ve endpoint seçerek test etmeye başlayın</p>
+          </div>
         </div>
       </div>
     );
@@ -173,6 +287,16 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
 
   const handleExecute = async () => {
     if (!environment) { setError('Lütfen önce bir ortam seçin'); return; }
+
+    if (hasBody && bodyValue.trim()) {
+      const isValid = validateBody(bodyValue);
+      if (!isValid) {
+        setActiveTab('body');
+        setError(isXmlEndpoint ? 'İstek gönderilemedi: Request body geçerli bir XML değil.' : 'İstek gönderilemedi: Request body geçerli bir JSON değil.');
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
     setResponse(null);
@@ -188,13 +312,7 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
         if (isXmlEndpoint) {
           bodyPayload = bodyValue;
         } else {
-          try {
-            bodyPayload = JSON.parse(bodyValue);
-          } catch {
-            setError('Request body geçerli bir JSON değil');
-            setLoading(false);
-            return;
-          }
+          bodyPayload = JSON.parse(bodyValue);
         }
       }
       const result = await proxyApi.execute({
@@ -252,6 +370,22 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-6 py-4">
+        {/* Mobile Header Buttons */}
+        <div className="flex items-center gap-2 lg:hidden mb-3">
+          <button 
+            onClick={onToggleSidebar}
+            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium border border-gray-200 transition-colors"
+          >
+            <span>☰</span> Ortam & API
+          </button>
+          <button 
+            onClick={onToggleCatalog}
+            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium border border-gray-200 transition-colors"
+          >
+            <span>📂</span> Endpointler
+          </button>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <span className={`method-badge ${METHOD_COLORS[endpoint.method.toLowerCase()] || 'bg-gray-100 text-gray-600'}`}>
             {endpoint.method.toUpperCase()}
@@ -326,7 +460,7 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         {activeTab === 'params' && (
           <div className="p-6 space-y-6">
             {pathParams.length > 0 && (
@@ -380,22 +514,62 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
         )}
 
         {activeTab === 'body' && hasBody && (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-3">
+          <div className="p-6 flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{isXmlEndpoint ? 'SOAP / XML Body' : 'JSON Body'}</h3>
-              {endpoint.operation.requestBody?.content?.['application/json']?.schema?.required && (
-                <span className="text-xs text-gray-400">
-                  Zorunlu: {endpoint.operation.requestBody.content['application/json'].schema.required?.join(', ')}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => validateBody(bodyValue)}
+                  className="text-xs px-2.5 py-1 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all font-medium flex items-center gap-1 shadow-sm"
+                >
+                  🔍 Doğrula
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFormatBody}
+                  className="text-xs px-2.5 py-1 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-all font-medium flex items-center gap-1 shadow-sm"
+                >
+                  ✨ Biçimlendir
+                </button>
+                {endpoint.operation.requestBody?.content?.['application/json']?.schema?.required && (
+                  <span className="text-xs text-gray-400 ml-2">
+                    Zorunlu: {endpoint.operation.requestBody.content['application/json'].schema.required?.join(', ')}
+                  </span>
+                )}
+              </div>
             </div>
             <textarea
               value={bodyValue}
-              onChange={e => setBodyValue(e.target.value)}
-              className="w-full h-64 font-mono text-xs border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-sap-blue resize-none"
+              onChange={e => handleBodyChange(e.target.value)}
+              className={`w-full flex-1 min-h-[300px] font-mono text-xs border rounded p-3 focus:outline-none focus:ring-2 resize-y transition-all ${
+                !bodyValue.trim()
+                  ? 'border-gray-300 focus:border-sap-blue focus:ring-sap-blue/20'
+                  : validationSuccess
+                  ? 'border-green-500 focus:border-green-600 focus:ring-green-100 bg-green-50/10'
+                  : 'border-red-500 focus:border-red-600 focus:ring-red-100 bg-red-50/10'
+              }`}
               placeholder={isXmlEndpoint ? '<?xml version="1.0" encoding="UTF-8"?>\n<soapenv:Envelope>...</soapenv:Envelope>' : '{"key": "value"}'}
               spellCheck={false}
             />
+
+            {/* Validation Feedback */}
+            {bodyValue.trim() && (
+              <div className="mt-2 text-xs">
+                {validationSuccess && (
+                  <div className="flex items-center gap-1.5 text-green-600 bg-green-50/50 px-3 py-2 rounded-lg border border-green-200">
+                    <span className="text-sm">✓</span>
+                    <span className="font-medium">Geçerli {isXmlEndpoint ? 'XML' : 'JSON'} formatı</span>
+                  </div>
+                )}
+                {validationError && (
+                  <div className="flex items-start gap-1.5 text-red-600 bg-red-50/50 px-3 py-2 rounded-lg border border-red-200 font-mono break-all leading-normal">
+                    <span className="text-sm shrink-0">✗</span>
+                    <span>{validationError}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {endpoint.operation.requestBody?.content?.['application/json']?.schema?.properties && (
               <div className="mt-4">
@@ -427,11 +601,11 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
         )}
 
         {activeTab === 'response' && (
-          <div className="p-6">
+          <div className="p-6 flex flex-col flex-1 min-h-0">
             {!response ? (
               <div className="text-center py-12 text-sm text-gray-400">Henüz istek gönderilmedi. "Gönder" butonuna basın.</div>
             ) : (
-              <div className="space-y-4">
+              <div className="flex flex-col flex-1 min-h-0 space-y-4">
                 <div className="flex items-center gap-4 flex-wrap">
                   <div className={`flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium ${getStatusColor(response.status)}`}>
                     <span>{response.status}</span>
@@ -457,8 +631,8 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
                   )}
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div className="flex items-center justify-between mb-2 flex-shrink-0">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Response Body</span>
                     <button
                       onClick={() => navigator.clipboard.writeText(isXmlResponse(response.body) ? formatXml(response.body) : formatJson(response.body))}
@@ -467,7 +641,7 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId }: Pr
                       Kopyala
                     </button>
                   </div>
-                  <pre className="json-viewer bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-xs max-h-96 overflow-y-auto">
+                  <pre className="json-viewer bg-gray-900 text-green-400 p-4 rounded overflow-auto text-xs flex-1 min-h-[300px]">
                     {isXmlResponse(response.body) ? formatXml(response.body) : formatJson(response.body)}
                   </pre>
                 </div>
@@ -594,9 +768,16 @@ function VariantItem({ variant, onApply, onDelete, canDelete }: {
   return (
     <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0 group">
       <button onClick={onApply} className="flex-1 text-left min-w-0">
-        <div className="text-xs font-medium text-gray-700 truncate">{variant.name}</div>
+        <div className="text-xs font-medium text-gray-700 truncate flex items-center gap-1.5">
+          <span>{variant.name}</span>
+          {variant.scope === 'global' && variant.environment_name && (
+            <span className="text-[9px] bg-blue-50 text-sap-blue px-1 py-0.5 rounded font-normal shrink-0 border border-blue-100">
+              {variant.environment_name}
+            </span>
+          )}
+        </div>
         {variant.scope === 'global' && variant.created_by_email && (
-          <div className="text-xs text-gray-400 truncate">{variant.created_by_email}</div>
+          <div className="text-[10px] text-gray-400 truncate mt-0.5">{variant.created_by_email}</div>
         )}
       </button>
       {canDelete && (
@@ -614,18 +795,18 @@ function ParamInput({ param, value, onChange }: {
   onChange: (val: string) => void;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="w-48 flex-shrink-0">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3 py-1.5 border-b border-gray-100 last:border-0 sm:border-0">
+      <div className="w-full sm:w-48 flex-shrink-0">
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-gray-700">{param.name}</label>
-          {param.required && <span className="text-red-500 text-xs">*</span>}
+          <label className="text-xs font-semibold text-gray-700">{param.name}</label>
+          {param.required && <span className="text-red-500 text-xs font-bold">*</span>}
         </div>
-        {param.description && <p className="text-xs text-gray-400 mt-0.5 leading-tight">{param.description}</p>}
-        <span className="text-xs text-gray-300">{param.schema?.type}</span>
+        {param.description && <p className="text-[11px] text-gray-400 mt-0.5 leading-tight">{param.description}</p>}
+        <span className="text-[10px] text-gray-300 font-mono mt-0.5 block">{param.schema?.type}</span>
       </div>
-      <div className="flex-1">
+      <div className="flex-1 w-full">
         {param.schema?.enum ? (
-          <select value={value} onChange={e => onChange(e.target.value)} className="input-field text-xs">
+          <select value={value} onChange={e => onChange(e.target.value)} className="input-field text-xs w-full">
             <option value="">-- Seçin --</option>
             {param.schema.enum.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
@@ -635,7 +816,7 @@ function ParamInput({ param, value, onChange }: {
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={String(param.schema?.example ?? '')}
-            className="input-field text-xs"
+            className="input-field text-xs w-full"
           />
         )}
       </div>

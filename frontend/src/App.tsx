@@ -62,6 +62,67 @@ export default function App() {
   const [showCommScenario, setShowCommScenario] = useState(false);
   const [specUploadApiId, setSpecUploadApiId] = useState<number | null>(null);
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [catalogCollapsed, setCatalogCollapsed] = useState(false);
+
+  const [sidebarWidth, setSidebarWidth] = useState(288);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+
+  const [catalogWidth, setCatalogWidth] = useState(288);
+  const [isResizingCatalog, setIsResizingCatalog] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const isSmall = window.innerWidth < 1024;
+      setSidebarCollapsed(isSmall);
+      setCatalogCollapsed(isSmall);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingSidebar) {
+        const newWidth = e.clientX;
+        if (newWidth > 150 && newWidth < 450) {
+          setSidebarWidth(newWidth);
+        }
+      } else if (isResizingCatalog) {
+        const sidebarOffset = sidebarCollapsed ? 0 : sidebarWidth;
+        const newWidth = e.clientX - sidebarOffset;
+        if (newWidth > 150 && newWidth < 450) {
+          setCatalogWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+      setIsResizingCatalog(false);
+    };
+
+    if (isResizingSidebar || isResizingCatalog) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar, isResizingCatalog, sidebarCollapsed, sidebarWidth]);
+
+  const startResizeSidebar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+  };
+
+  const startResizeCatalog = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingCatalog(true);
+  };
+
   useEffect(() => {
     if (!auth) return;
     environmentsApi.getAll().then(setEnvironments).catch(console.error);
@@ -279,7 +340,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden relative">
       {logoutMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg shadow-lg text-sm flex items-center gap-2">
           <span>⚠️</span>
@@ -288,78 +349,175 @@ export default function App() {
         </div>
       )}
 
-      <Sidebar
-        environments={environments}
-        selectedEnvironment={selectedEnvironment}
-        onSelectEnvironment={handleSelectEnvironment}
-        onAddEnvironment={() => { setEditingEnv(null); setShowEnvModal(true); }}
-        onEditEnvironment={env => { setEditingEnv(env); setShowEnvModal(true); }}
-        onDeleteEnvironment={handleDeleteEnv}
-        apis={apis}
-        selectedApi={selectedApi}
-        onSelectApi={handleSelectApi}
-        onAddApi={() => setShowAddApiModal(true)}
-        onDeleteApi={handleDeleteApi}
-        onRefreshApi={handleRefreshApi}
-        onArrangeApi={handleArrangeApi}
-        onUploadSpec={setSpecUploadApiId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        apiAccessMap={apiAccessMap}
-        checkingAccess={checkingAccess}
-        arrangementMap={arrangementMap}
-        user={auth.user}
-        onLogout={handleLogout}
-        onOpenCommScenario={() => setShowCommScenario(true)}
-        onRefreshAllStatuses={handleRefreshAllStatuses}
-      />
+      {/* Sidebar Container */}
+      <div 
+        style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+        className={`transition-all duration-150 flex-shrink-0 z-40 relative h-full bg-white flex ${
+          sidebarCollapsed 
+            ? 'w-0 overflow-hidden lg:w-0' 
+            : 'absolute lg:relative left-0 top-0 shadow-2xl lg:shadow-none'
+        }`}
+      >
+        <div className="flex-1 overflow-hidden h-full">
+          <Sidebar
+            environments={environments}
+            selectedEnvironment={selectedEnvironment}
+            onSelectEnvironment={handleSelectEnvironment}
+            onAddEnvironment={() => { setEditingEnv(null); setShowEnvModal(true); }}
+            onEditEnvironment={env => { setEditingEnv(env); setShowEnvModal(true); }}
+            onDeleteEnvironment={handleDeleteEnv}
+            apis={apis}
+            selectedApi={selectedApi}
+            onSelectApi={handleSelectApi}
+            onAddApi={() => setShowAddApiModal(true)}
+            onDeleteApi={handleDeleteApi}
+            onRefreshApi={handleRefreshApi}
+            onArrangeApi={handleArrangeApi}
+            onUploadSpec={setSpecUploadApiId}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            apiAccessMap={apiAccessMap}
+            checkingAccess={checkingAccess}
+            arrangementMap={arrangementMap}
+            user={auth.user}
+            onLogout={handleLogout}
+            onOpenCommScenario={() => setShowCommScenario(true)}
+            onRefreshAllStatuses={handleRefreshAllStatuses}
+          />
+        </div>
+
+        {/* Custom Drag Splitter Handle (only on desktop lg) */}
+        {!sidebarCollapsed && (
+          <div
+            onMouseDown={startResizeSidebar}
+            className="hidden lg:block absolute top-0 -right-1.5 w-3 h-full cursor-col-resize z-50 group hover:bg-sap-blue/20 active:bg-sap-blue/40 transition-colors"
+          >
+            <div className="w-[2px] h-full bg-gray-200 group-hover:bg-sap-blue/40 mx-auto" />
+          </div>
+        )}
+      </div>
+
+      {/* Reopen Sidebar Trigger Button */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="hidden lg:flex fixed left-0 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 border-l-0 shadow-md rounded-r-xl items-center justify-center text-[10px] text-gray-400 hover:text-sap-blue hover:bg-gray-50 z-50 transition-colors"
+          title="Ortam & API Panelini Göster"
+        >
+          ▶
+        </button>
+      )}
+
+      {/* Sidebar Backdrop for Mobile */}
+      {!sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-35 lg:hidden" 
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
 
       {selectedApi ? (
-        <div className="flex flex-1 overflow-x-auto overflow-y-hidden min-w-0">
-          <ApiCatalogPanel
-            api={selectedApi}
-            endpoints={endpoints}
-            loading={loadingSpec}
-            accessInfo={apiAccessMap[selectedApi.id]}
-            communicationScenario={commScenario}
-            onSelectEndpoint={setSelectedEndpoint}
-            selectedEndpoint={selectedEndpoint}
-            onUploadSpec={setSpecUploadApiId}
-            isSpecUploaded={isSpecUploaded}
-          />
+        <div className="flex flex-1 overflow-x-auto overflow-y-hidden min-w-0 relative h-full">
+          {/* ApiCatalogPanel Container */}
+          <div 
+            style={{ width: catalogCollapsed ? 0 : catalogWidth }}
+            className={`transition-all duration-150 flex-shrink-0 z-30 relative h-full bg-white flex ${
+              catalogCollapsed 
+                ? 'w-0 overflow-hidden lg:w-0' 
+                : 'absolute lg:relative left-0 top-0 shadow-2xl lg:shadow-none'
+            }`}
+          >
+            <div className="flex-1 overflow-hidden h-full">
+              <ApiCatalogPanel
+                api={selectedApi}
+                endpoints={endpoints}
+                loading={loadingSpec}
+                accessInfo={apiAccessMap[selectedApi.id]}
+                communicationScenario={commScenario}
+                onSelectEndpoint={setSelectedEndpoint}
+                selectedEndpoint={selectedEndpoint}
+                onUploadSpec={setSpecUploadApiId}
+                isSpecUploaded={isSpecUploaded}
+              />
+            </div>
+
+            {/* Custom Drag Splitter Handle (only on desktop lg) */}
+            {!catalogCollapsed && (
+              <div
+                onMouseDown={startResizeCatalog}
+                className="hidden lg:block absolute top-0 -right-1.5 w-3 h-full cursor-col-resize z-50 group hover:bg-sap-blue/20 active:bg-sap-blue/40 transition-colors"
+              >
+                <div className="w-[2px] h-full bg-gray-200 group-hover:bg-sap-blue/40 mx-auto" />
+              </div>
+            )}
+          </div>
+
+          {/* Catalog Backdrop for Mobile */}
+          {!catalogCollapsed && (
+            <div 
+              className="fixed inset-0 bg-black/40 z-25 lg:hidden" 
+              onClick={() => setCatalogCollapsed(true)}
+            />
+          )}
+
+          {/* Reopen Catalog Trigger Button */}
+          {catalogCollapsed && (
+            <button
+              onClick={() => setCatalogCollapsed(false)}
+              className="hidden lg:flex absolute left-0 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 border-l-0 shadow-md rounded-r-xl items-center justify-center text-[10px] text-gray-400 hover:text-sap-blue hover:bg-gray-50 z-50 transition-colors"
+              title="Endpoint Listesini Göster"
+            >
+              ▶
+            </button>
+          )}
+
           <TryOutPanel
             endpoint={selectedEndpoint}
             environment={selectedEnvironment}
             apiId={String(selectedApi.id)}
             userId={auth.user.id}
+            onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
+            onToggleCatalog={() => setCatalogCollapsed(prev => !prev)}
           />
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center max-w-sm">
-            <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-2xl font-bold">NTT</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">NTT API Explorer</h1>
-            <p className="text-gray-500 text-sm mb-6">
-              Sol panelden bir ortam tanımlayın, ardından test etmek istediğiniz API'yi ekleyin.
-            </p>
-            <div className="flex flex-col gap-2 text-left bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <span className="text-sap-blue font-bold">1.</span>
-                <span>"+ Ekle" ile sistemlerinizi tanımlayın</span>
+        <div className="flex-1 flex flex-col bg-gray-50 h-full overflow-y-auto">
+          {/* Mobile Header when welcome screen is open */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-2 lg:hidden">
+            <button 
+              onClick={() => setSidebarCollapsed(prev => !prev)}
+              className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-medium border border-gray-200 transition-colors"
+            >
+              <span>☰</span> Ortam & API
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center max-w-sm">
+              <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-white text-2xl font-bold">NTT</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sap-blue font-bold">2.</span>
-                <span>"+ API Ekle" ile test edeceğiniz servisi ekleyin</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sap-blue font-bold">3.</span>
-                <span>Endpoint seçip parametreleri doldurun</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sap-blue font-bold">4.</span>
-                <span>"Gönder" ile gerçek verinizi görün</span>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">NTT API Explorer</h1>
+              <p className="text-gray-500 text-sm mb-6">
+                Sol panelden bir ortam tanımlayın, ardından test etmek istediğiniz API'yi ekleyin.
+              </p>
+              <div className="flex flex-col gap-2 text-left bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span className="text-sap-blue font-bold">1.</span>
+                  <span>"+ Ekle" ile sistemlerinizi tanımlayın</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sap-blue font-bold">2.</span>
+                  <span>"+ API Ekle" ile test edeceğiniz servisi ekleyin</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sap-blue font-bold">3.</span>
+                  <span>Endpoint seçip parametreleri doldurun</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sap-blue font-bold">4.</span>
+                  <span>"Gönder" ile gerçek verinizi görün</span>
+                </div>
               </div>
             </div>
           </div>

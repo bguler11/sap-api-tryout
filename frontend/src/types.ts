@@ -122,6 +122,7 @@ export interface Variant {
   environment_id?: number;
   created_by?: number;
   created_by_email?: string;
+  environment_name?: string;
 }
 
 export interface VariantList {

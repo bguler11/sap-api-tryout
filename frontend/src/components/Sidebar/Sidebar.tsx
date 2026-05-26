@@ -59,7 +59,7 @@ export default function Sidebar({
   );
 
   return (
-    <div className="w-72 bg-white border-r border-gray-200 flex flex-col h-full">
+    <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 bg-sap-darkgray">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -78,14 +78,14 @@ export default function ApiCatalogPanel({
 
   if (loading) {
     return (
-      <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white flex items-center justify-center">
+      <div className="w-full flex-shrink-0 border-r border-gray-200 bg-white flex items-center justify-center h-full">
         <div className="w-8 h-8 border-2 border-sap-blue border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
+    <div className="w-full flex-shrink-0 border-r border-gray-200 bg-white flex flex-col h-full overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 min-w-0">
