@@ -1,5 +1,9 @@
 import fetch from 'node-fetch';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getCommScenario } from './commScenarioMap';
+
+const proxyUrl = process.env.HTTPS_PROXY || 'http://proxy-de-srv.solco.global.nttdata.com:8080';
+const agent = new HttpsProxyAgent(proxyUrl);
 
 const CATALOG_BASE = "https://api.sap.com/odata/1.0/catalog.svc";
 const ARTIFACT_LIST_URL =
@@ -40,7 +44,7 @@ async function fetchWithTimeout(url: string, options: any = {}): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { agent, ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
