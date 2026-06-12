@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ntt-api-explorer-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  - type: web
+    name: ntt-api-explorer-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ntt-api-explorer-backend
+          envVarKey: RENDER_EXTERNAL_URL
