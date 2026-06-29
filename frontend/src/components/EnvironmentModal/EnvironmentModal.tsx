@@ -101,7 +101,7 @@ export default function EnvironmentModal({ environment, onClose, onSaved }: Prop
           </div>
 
           <div>
-            <label className="label">Kullanıcı Adı *</label>
+            <label className="label">Communication User *</label>
             <input
               name="username"
               value={form.username}
@@ -114,7 +114,7 @@ export default function EnvironmentModal({ environment, onClose, onSaved }: Prop
 
           <div>
             <label className="label">
-              Şifre {environment ? '(değiştirmek için doldurun)' : '*'}
+              Comm. User Şifresi {environment ? '(değiştirmek için doldurun)' : '*'}
             </label>
             <input
               name="password"
