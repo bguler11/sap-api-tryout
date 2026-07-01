@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { initDb, seedCommScenarios } from './services/db.service';
 import environmentsRouter from './routes/environments';
 import { preloadCatalog } from './services/sapCatalog.service';
@@ -13,7 +15,6 @@ import historyRouter from './routes/history';
 import authRouter from './routes/auth';
 import variantsRouter from './routes/variants';
 
-dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const app = express();
