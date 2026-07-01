@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import fetch from 'node-fetch';
 import { getEnvironmentByIdUnsafe, getEnvironmentApiById, addRequestHistory } from '../services/db.service';
+import { globalProxyAgent } from '../services/proxyAgent';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ async function fetchCsrfToken(
 ): Promise<{ token: string; cookies: string }> {
   const tokenUrl = `${baseUrl}${path}`;
   const response = await fetch(tokenUrl, {
+    agent: globalProxyAgent,
     method: 'GET',
     headers: {
       Authorization: `Basic ${credentials}`,
@@ -100,7 +102,7 @@ router.post('/', async (req: Request, res: Response) => {
   const startTime = Date.now();
 
   try {
-    const fetchOptions: any = { method: method.toUpperCase(), headers: requestHeaders };
+    const fetchOptions: any = { agent: globalProxyAgent, method: method.toUpperCase(), headers: requestHeaders };
     if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && body) {
       fetchOptions.body = typeof body === 'string' ? body : (isSOAP ? body : JSON.stringify(body));
     }

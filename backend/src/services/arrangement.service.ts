@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { getCommScenario } from './commScenarioMap';
+import { globalProxyAgent } from './proxyAgent';
 
 const TIMEOUT_MS = 15000;
 const ODATA4_PATH = '/sap/opu/odata4/sap/aps_com_ca_a4c_odata/srvd_a2x/sap/aps_com_ca_a4c_odata/0001';
@@ -12,7 +13,7 @@ async function fetchWithTimeout(url: string, options: any): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { agent: globalProxyAgent, ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }

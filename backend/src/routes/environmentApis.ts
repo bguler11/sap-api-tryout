@@ -14,6 +14,7 @@ import {
 import { fetchAndParseMetadata } from '../services/metadata.service';
 import { ensureArrangement, checkArrangement } from '../services/arrangement.service';
 import { searchSapCatalog, getRawApiHubSpec } from '../services/sapCatalog.service';
+import { globalProxyAgent } from '../services/proxyAgent';
 
 const router = Router();
 router.use(authMiddleware);
@@ -98,6 +99,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       let tenantRes: any;
       try {
         tenantRes = await fetch(testUrl, {
+          agent: globalProxyAgent,
           signal: controller.signal,
           headers: {
             Authorization: 'Basic ' + Buffer.from(`${env.username}:${plainPassword}`).toString('base64'),
