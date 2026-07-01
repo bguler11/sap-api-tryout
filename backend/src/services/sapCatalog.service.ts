@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+// @ts-ignore
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getCommScenario } from './commScenarioMap';
 
