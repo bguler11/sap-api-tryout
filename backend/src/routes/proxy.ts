@@ -51,7 +51,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
   }
 
-  let url = `${baseUrl}${resolvedPath}`;
+  let url = `${baseUrl}${encodeURI(resolvedPath)}`;
 
   if (apiId) {
     const api = getEnvironmentApiById(Number(apiId));
