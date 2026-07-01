@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import express from 'express';
 import cors from 'cors';
 import { initDb, seedCommScenarios } from './services/db.service';
@@ -15,6 +12,7 @@ import historyRouter from './routes/history';
 import authRouter from './routes/auth';
 import variantsRouter from './routes/variants';
 
+dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const app = express();
