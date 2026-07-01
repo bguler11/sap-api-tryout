@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import { initDb, seedCommScenarios } from './services/db.service';
 import environmentsRouter from './routes/environments';
 import { preloadCatalog } from './services/sapCatalog.service';
