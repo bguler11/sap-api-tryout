@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import fetch from 'node-fetch';
 import { getEnvironmentApis, getEnvironmentById, getEnvironmentApiById } from '../services/db.service';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { getProxyAgent } from '../services/proxyAgent';
 
 const router = Router();
 
@@ -78,6 +79,7 @@ router.post('/check-all', authMiddleware, async (req: AuthRequest, res: Response
           const timer = setTimeout(() => controller.abort(), 15000); // Bireysel deneme süresi
           console.log(`[TEST ACCESS] URL Test ediliyor: ${api.name} -> ${testUrl}`);
           const response = await fetch(testUrl, {
+            agent: getProxyAgent(),
             method: 'GET',
             headers: { Authorization: `Basic ${credentials}`, Accept: 'application/json' },
             signal: controller.signal,
