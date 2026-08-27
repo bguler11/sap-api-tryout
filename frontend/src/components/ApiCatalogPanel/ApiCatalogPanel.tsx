@@ -89,10 +89,10 @@ export default function ApiCatalogPanel({
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 bg-sap-blue rounded flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 bg-brand-gradient rounded-lg flex items-center justify-center flex-shrink-0 shadow-soft">
               <span className="text-white text-xs font-bold">S</span>
             </div>
-            <h2 className="text-sm font-semibold text-gray-800 truncate">{api.name}</h2>
+            <h2 className="text-sm font-semibold text-ink-900 truncate">{api.name}</h2>
           </div>
           {onUploadSpec && (
             <button

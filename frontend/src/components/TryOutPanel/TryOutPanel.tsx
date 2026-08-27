@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Endpoint, Environment, ProxyResponse, OpenApiParameter, Variant, VariantList } from '../../types';
 import { proxyApi, variantsApi } from '../../services/api';
+import { confirmDialog } from '../ConfirmDialog/ConfirmDialog';
 
 interface Props {
   endpoint: Endpoint | null;
@@ -232,7 +233,7 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId, onTo
   };
 
   const handleDeleteVariant = async (variant: Variant) => {
-    if (!confirm(`"${variant.name}" varyantını silmek istiyor musunuz?`)) return;
+    if (!(await confirmDialog(`"${variant.name}" varyantını silmek istiyor musunuz?`))) return;
     try {
       if (variant.scope === 'user') {
         await variantsApi.deleteUser(variant.id);
@@ -607,12 +608,13 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId, onTo
             ) : (
               <div className="flex flex-col flex-1 min-h-0 space-y-4">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium ${getStatusColor(response.status)}`}>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-semibold shadow-soft ${getStatusColor(response.status)}`}>
+                    <span className={`w-2 h-2 rounded-full ${response.status >= 200 && response.status < 300 ? 'bg-green-500' : response.status >= 500 ? 'bg-red-500' : 'bg-yellow-500'} animate-pulse`} />
                     <span>{response.status}</span>
-                    <span>{response.statusText}</span>
+                    <span className="opacity-70">{response.statusText}</span>
                   </div>
-                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">⏱ {response.duration_ms}ms</div>
-                  <div className="text-xs text-gray-400 truncate flex-1" title={response.url}>{response.url}</div>
+                  <div className="text-xs font-medium text-ink-600 bg-slate-100 px-2.5 py-1 rounded-lg">⏱ {response.duration_ms}ms</div>
+                  <div className="text-xs text-ink-400 font-mono truncate flex-1" title={response.url}>{response.url}</div>
                 </div>
 
                 <div>
@@ -631,17 +633,24 @@ export default function TryOutPanel({ endpoint, environment, apiId, userId, onTo
                   )}
                 </div>
 
-                <div className="flex flex-col flex-1 min-h-0">
-                  <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Response Body</span>
+                <div className="flex flex-col flex-1 min-h-0 rounded-xl border border-white/10 bg-[#0B1120] shadow-card overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 border-b border-white/10 bg-white/[0.03]">
+                    <div className="flex items-center gap-2">
+                      <span className="flex gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-400/80" />
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider ml-1">Response Body</span>
+                    </div>
                     <button
                       onClick={() => navigator.clipboard.writeText(isXmlResponse(response.body) ? formatXml(response.body) : formatJson(response.body))}
-                      className="text-xs text-gray-400 hover:text-gray-600"
+                      className="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1"
                     >
-                      Kopyala
+                      <span>⧉</span> Kopyala
                     </button>
                   </div>
-                  <pre className="json-viewer bg-gray-900 text-green-400 p-4 rounded overflow-auto text-xs flex-1 min-h-[300px]">
+                  <pre className="json-viewer text-emerald-300 p-4 overflow-auto text-xs flex-1 min-h-[300px]">
                     {isXmlResponse(response.body) ? formatXml(response.body) : formatJson(response.body)}
                   </pre>
                 </div>

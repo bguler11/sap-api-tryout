@@ -54,6 +54,14 @@ function apiKeyHeaders() {
   return { Accept: 'application/json', APIKey: getApiKey() };
 }
 
+// SAP, kimliksiz/gated katalog isteklerine HTTP 200 + text/html ile bir OAuth
+// login yönlendirme sayfası döndürür. Bunu JSON sanıp parse etmek
+// "Unexpected token '<'" hatasına yol açar; bu yüzden önceden tespit ediyoruz.
+function isSapLoginHtml(body: string): boolean {
+  const s = body.slice(0, 500).toLowerCase();
+  return s.startsWith('<html') || s.includes('locationafterlogin') || s.includes('/oauth/authorize');
+}
+
 async function loadAllApis(): Promise<CatalogApiResult[]> {
   const now = Date.now();
   if (listCache && listCachedAt && now - listCachedAt < LIST_CACHE_TTL) {
@@ -114,31 +122,52 @@ export async function getApiDetail(apiName: string): Promise<CatalogApiDetail> {
     return detailCache.get(apiName)!;
   }
 
-  const url = `${CATALOG_BASE}/APIContent.APIs('${encodeURIComponent(apiName)}')?$format=json`;
+  // SAP, detay + ServiceUrl taşıyan APIContent.APIs('...') entity'sini OAuth
+  // arkasına aldı (APIKey ile HTTP 200 + login HTML döner). Jenerik Artifacts
+  // entity'si ise hâlâ APIKey ile çalışıyor; oradan temel bilgileri alıp
+  // sandbox/service URL'lerini kalıptan türetiyoruz.
+  const url = `${CATALOG_BASE}/Artifacts(Name='${encodeURIComponent(apiName)}',Type='API')?$format=json`;
   const res = await fetchWithTimeout(url, { headers: apiKeyHeaders() });
 
+  const raw: string = await res.text();
+  if (isSapLoginHtml(raw)) {
+    throw new Error("SAP API Hub kimlik hatası: katalog isteği login sayfasına yönlendirildi — SAP_API_KEY eksik veya geçersiz olabilir");
+  }
   if (!res.ok) {
     throw new Error(`SAP Catalog API detayı alınamadı: HTTP ${res.status}`);
   }
 
-  const json = await res.json() as any;
+  let json: any;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error('SAP Catalog beklenmeyen (JSON olmayan) yanıt döndürdü');
+  }
   const d = json?.d;
-  if (!d) throw new Error('SAP Catalog boş yanıt döndürdü');
+  if (!d || !d.Name) throw new Error(`"${apiName}" SAP Catalog'da bulunamadı`);
 
-  const sandboxUrl: string = d.ServiceUrl || '';
-  const subType: string = d.ServiceCode || 'ODATA';
+  const name: string = d.Name || apiName;
+  const subType: string = (d.SubType || 'ODATA').toUpperCase();
 
-  const serviceUrl = sandboxUrl
-    ? sandboxUrl.replace(/^https:\/\/sandbox\.api\.sap\.com\/s4hanacloud/, '')
-    : '';
+  // Sandbox URL kalıbı yalnızca OData v2 için deterministik. v4 / SOAP'ta gerçek
+  // path kalıptan çıkarılamaz → sandboxUrl boş kalır ve akış "Spec Yükle" yoluna
+  // düşer (metadata.service bu durumda anlaşılır bir hata fırlatır).
+  let sandboxUrl = '';
+  let serviceUrl = '';
+  if (subType === 'ODATA') {
+    serviceUrl = `/sap/opu/odata/sap/${name}`;
+    sandboxUrl = `https://sandbox.api.sap.com/s4hanacloud${serviceUrl}`;
+  } else if (subType === 'SOAP') {
+    serviceUrl = `/sap/bc/srt/scs_ext/sap/${name.toLowerCase()}`;
+  }
 
   const detail: CatalogApiDetail = {
-    name: d.Name || apiName,
-    title: d.Title || apiName,
+    name,
+    title: d.DisplayName || d.Description || name,
     sandboxUrl,
     serviceUrl,
     subType,
-    communicationScenario: getCommScenario(d.Name || apiName),
+    communicationScenario: getCommScenario(name),
   };
 
   detailCache.set(apiName, detail);
@@ -148,10 +177,18 @@ export async function getApiDetail(apiName: string): Promise<CatalogApiDetail> {
 export async function getRawApiHubSpec(apiName: string): Promise<any> {
   const url = `${CATALOG_BASE}/APIContent.APIs('${encodeURIComponent(apiName)}')/$value?type=json`;
   const res = await fetchWithTimeout(url, { headers: apiKeyHeaders() });
+  const raw: string = await res.text();
+  if (isSapLoginHtml(raw)) {
+    throw new Error("SAP API Hub ham spec uç noktasını artık APIKey ile vermiyor (OAuth gerekiyor) — \"Spec Yükle\" ile manuel yükleyebilirsiniz");
+  }
   if (!res.ok) {
     throw new Error(`SAP API Hub'dan spec indirilemedi: HTTP ${res.status}`);
   }
-  return res.json();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error('SAP API Hub beklenmeyen (JSON olmayan) yanıt döndürdü');
+  }
 }
 
 export async function fetchSandboxMetadata(apiName: string): Promise<string> {

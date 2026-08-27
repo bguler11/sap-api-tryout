@@ -36,26 +36,39 @@ export default function LoginPage({ onAuth }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0B1120]">
+      {/* Dekoratif arka plan */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-24 w-[32rem] h-[32rem] rounded-full bg-sap-blue/30 blur-[120px] animate-float-a" />
+        <div className="absolute -bottom-40 -right-24 w-[34rem] h-[34rem] rounded-full bg-indigo-600/25 blur-[130px] animate-float-b" />
+        <div className="absolute top-1/3 left-1/2 w-72 h-72 rounded-full bg-cyan-400/15 blur-[110px] animate-float-a" />
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '44px 44px' }}
+        />
+      </div>
+
+      <div className="relative w-full max-w-md animate-rise">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">NTT</span>
+          <div className="w-[72px] h-[72px] bg-brand-gradient rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-glow ring-1 ring-white/20">
+            <span className="text-white text-2xl font-extrabold tracking-tight">NTT</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">NTT API Explorer</h1>
-          <p className="text-gray-500 text-sm mt-1">Entegrasyon sistemlerinizi test edin</p>
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-blue-100 to-sky-300 bg-clip-text text-transparent">
+            NTT API Explorer
+          </h1>
+          <p className="text-slate-400 text-sm mt-2">Entegrasyon sistemlerinizi test edin</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-2xl p-6 ring-1 ring-white/5">
+          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 mb-6">
             <button
-              className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${mode === 'login' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-all ${mode === 'login' ? 'bg-brand-gradient text-white shadow-glow' : 'text-slate-400 hover:text-white'}`}
               onClick={() => { setMode('login'); setError(''); }}
             >
               Giriş Yap
             </button>
             <button
-              className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${mode === 'register' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-all ${mode === 'register' ? 'bg-brand-gradient text-white shadow-glow' : 'text-slate-400 hover:text-white'}`}
               onClick={() => { setMode('register'); setError(''); }}
             >
               Kayıt Ol
@@ -65,43 +78,43 @@ export default function LoginPage({ onAuth }: Props) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Ad Soyad</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Ad Soyad</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="İsminiz (opsiyonel)"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sap-blue"
+                  className="w-full bg-white/5 border border-white/10 text-white placeholder:text-slate-500 rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-sap-blue focus:ring-2 focus:ring-sap-blue/30 focus:bg-white/10"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="ornek@sirket.com"
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sap-blue"
+                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-slate-500 rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-sap-blue focus:ring-2 focus:ring-sap-blue/30 focus:bg-white/10"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Şifre</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Şifre</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="En az 6 karakter"
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sap-blue"
+                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-slate-500 rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-sap-blue focus:ring-2 focus:ring-sap-blue/30 focus:bg-white/10"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-red-300">
                 {error}
               </div>
             )}
@@ -109,7 +122,7 @@ export default function LoginPage({ onAuth }: Props) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-sap-blue hover:bg-blue-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-60"
+              className="btn-primary w-full py-2.5 text-sm"
             >
               {loading ? 'Lütfen bekleyin...' : mode === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}
             </button>

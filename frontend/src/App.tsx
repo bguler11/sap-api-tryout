@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage/LoginPage';
 import CommScenarioPage from './components/CommScenarioPage/CommScenarioPage';
 import ApiCatalogPanel from './components/ApiCatalogPanel/ApiCatalogPanel';
 import SpecUploadModal from './components/SpecUploadModal/SpecUploadModal';
+import { ConfirmHost, confirmDialog } from './components/ConfirmDialog/ConfirmDialog';
 
 function loadStoredAuth(): AuthState | null {
   const token = localStorage.getItem('auth_token');
@@ -240,7 +241,7 @@ export default function App() {
   };
 
   const handleDeleteApi = async (id: number) => {
-    if (!confirm('Bu API\'yi silmek istediğinize emin misiniz?')) return;
+    if (!(await confirmDialog('Bu API\'yi silmek istediğinize emin misiniz?'))) return;
     await environmentApisApi.delete(id);
     setApis(prev => prev.filter(a => a.id !== id));
     if (selectedApi?.id === id) {
@@ -309,7 +310,7 @@ export default function App() {
   };
 
   const handleDeleteEnv = async (id: number) => {
-    if (!confirm('Bu ortamı silmek istediğinize emin misiniz?')) return;
+    if (!(await confirmDialog('Bu ortamı silmek istediğinize emin misiniz?'))) return;
     await environmentsApi.delete(id);
     setEnvironments(prev => prev.filter(e => e.id !== id));
     if (selectedEnvironment?.id === id) {
@@ -341,6 +342,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden relative">
+      <ConfirmHost />
       {logoutMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg shadow-lg text-sm flex items-center gap-2">
           <span>⚠️</span>
@@ -352,9 +354,9 @@ export default function App() {
       {/* Sidebar Container */}
       <div 
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
-        className={`transition-all duration-150 flex-shrink-0 z-40 relative h-full bg-white flex ${
-          sidebarCollapsed 
-            ? 'w-0 overflow-hidden lg:w-0' 
+        className={`transition-all duration-150 flex-shrink-0 z-40 relative h-full bg-[#0B1120] flex ${
+          sidebarCollapsed
+            ? 'w-0 overflow-hidden lg:w-0'
             : 'absolute lg:relative left-0 top-0 shadow-2xl lg:shadow-none'
         }`}
       >
@@ -492,32 +494,27 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center max-w-sm">
-              <div className="w-16 h-16 bg-sap-blue rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-2xl font-bold">NTT</span>
+          <div className="flex-1 flex items-center justify-center p-6 bg-brand-radial">
+            <div className="text-center max-w-sm animate-fade-in">
+              <div className="w-16 h-16 bg-brand-gradient rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow">
+                <span className="text-white text-2xl font-extrabold tracking-tight">NTT</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">NTT API Explorer</h1>
-              <p className="text-gray-500 text-sm mb-6">
+              <h1 className="text-2xl font-bold text-ink-900 mb-2 tracking-tight">NTT API Explorer</h1>
+              <p className="text-ink-500 text-sm mb-6">
                 Sol panelden bir ortam tanımlayın, ardından test etmek istediğiniz API'yi ekleyin.
               </p>
-              <div className="flex flex-col gap-2 text-left bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <span className="text-sap-blue font-bold">1.</span>
-                  <span>"+ Ekle" ile sistemlerinizi tanımlayın</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sap-blue font-bold">2.</span>
-                  <span>"+ API Ekle" ile test edeceğiniz servisi ekleyin</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sap-blue font-bold">3.</span>
-                  <span>Endpoint seçip parametreleri doldurun</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sap-blue font-bold">4.</span>
-                  <span>"Gönder" ile gerçek verinizi görün</span>
-                </div>
+              <div className="flex flex-col gap-2.5 text-left card p-5 text-sm text-ink-600">
+                {[
+                  '"+ Ekle" ile sistemlerinizi tanımlayın',
+                  '"+ API Ekle" ile test edeceğiniz servisi ekleyin',
+                  'Endpoint seçip parametreleri doldurun',
+                  '"Gönder" ile gerçek verinizi görün',
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 flex items-center justify-center rounded-md bg-sap-blue/10 text-sap-blue font-bold text-xs flex-shrink-0">{i + 1}</span>
+                    <span>{step}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -526,7 +523,7 @@ export default function App() {
 
       <button
         onClick={handleOpenHistory}
-        className="fixed bottom-4 right-4 bg-sap-darkgray text-white text-xs px-3 py-2 rounded-full shadow-lg hover:bg-gray-700 transition-colors"
+        className="fixed bottom-4 right-4 bg-sap-darkgray text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-card hover:brightness-125 transition-all"
       >
         Geçmiş
       </button>
